@@ -54,13 +54,33 @@ For pricing plans, keep the Lite plan, but notice your limits.
 
 Click "Create" and wait for the service to provision. This may take some time.
 
-Once the service is provisioned successfully, click on Service credentials.
+Once the service is provisioned successfully, click on the Launch Tool button. This opens the Watson Conversation tool and may require you to login again.
 
 ![alt text][conversation-manage]
 
-Expand "View credentials" to reveal your username and password. Enter these as strings in the C# script to access the API.
+The page that loads contains your workspaces. Click the icon to import a workspace.
+
+![alt text][workspaces]
+
+Import the [json file](https://github.com/IBM/watson-conversation-slots-intro/blob/master/data/watson-pizzeria.json) from the [Pizza Ordering Code Pattern](https://developer.ibm.com/code/patterns/assemble-a-pizza-ordering-chatbot-dialog/). Choose the file and import everything. This will create a new workspace with all the intents, entities, and dialog intact.
+
+Click the new workspace tile to open it.
+
+![alt text][Workspace-dashboard]
+
+Click the Deploy icon.
+
+Click Credentials (next to Deploy Options). Copy your workspace ID, username and password. Enter these as strings in the C# script to access the API.
+
+![alt text][credentials]
+
+...
+
+Alternatively, from the IBM Cloud Conversation page (page where the Launch tool button sits), click "Service credentials" then expand "View credentials" to reveal your username and password. Enter these as strings in the C# script to access the API. This does not show your workspace ID.
 
 ![alt text][conversation-service-credentials]
+
+
 
 
 ## Resources
@@ -80,3 +100,6 @@ https://github.com/watson-developer-cloud/unity-sdk
 [conversation-bottom]: ./images/conversation-bottom.png "alt text"
 [conversation-manage]: ./images/conversation-manage.png "alt text"
 [conversation-service-credentials]: ./images/conversation-top.png "alt text"
+[workspaces]: ./images/workspaces.png "alt text"
+[Workspace-dashboard]: ./images/Workspace-dashboard.png "alt text"
+[credentials]: ./images/credentials.png "alt text"
