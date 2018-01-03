@@ -262,7 +262,6 @@ public class SoldierConvo : MonoBehaviour {
 	private void InitializeServices()
 	{
 		Credentials credentials = new Credentials (<username>, <password>, "https://gateway.watsonplatform.net/conversation/api");
-		//Conversation _conversation = new Conversation (credentials);
 		_conversation = new Conversation(credentials);
 		//be sure to give it a Version Date
 		_conversation.VersionDate = "2017-05-26";
