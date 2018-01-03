@@ -33,6 +33,35 @@ Expand "View credentials" to reveal your username and password. Enter these as s
 
 ![alt text][stt-service-credentials]
 
+Repeat the same process for Text-to-Speech.
+
+### Conversation
+Create an IBM Cloud account if you haven't already.
+
+Click "Catalog" in the upper menu. This will take you to the list of available services, platforms, and other offerings on the IBM Cloud. To make it simple, use the column menu and click "Watson" at the very bottom. This will filter the catalog to just show Watson Services.
+
+![alt text][WatsonCatalogOfferings]
+
+Click on Conversation to start the provisioning of the service.
+
+Name the service, and select a region/location to deploy in. If applicable, choose an organization and space or leave it to the default if you only have one of each.
+
+![alt text][conversation-top]
+
+For pricing plans, keep the Lite plan, but notice your limits.
+
+![alt text][conversation-bottom]
+
+Click "Create" and wait for the service to provision. This may take some time.
+
+Once the service is provisioned successfully, click on Service credentials.
+
+![alt text][conversation-manage]
+
+Expand "View credentials" to reveal your username and password. Enter these as strings in the C# script to access the API.
+
+![alt text][conversation-service-credentials]
+
 
 ## Resources
 https://unity3d.com/learn/tutorials/topics/mobile-touch/building-your-unity-game-ios-device-testing
@@ -47,3 +76,7 @@ https://github.com/watson-developer-cloud/unity-sdk
 [shespizza]: ./images/shespizza.png "alt text"
 [stt-manage]: ./images/stt-manage.png "alt text"
 [stt-service-credentials]: ./images/stt-service-credentials.png "alt text"
+[conversation-top]: ./images/conversation-top.png "alt text"
+[conversation-bottom]: ./images/conversation-bottom.png "alt text"
+[conversation-manage]: ./images/conversation-manage.png "alt text"
+[conversation-service-credentials]: ./images/conversation-top.png "alt text"
