@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using IBM.Watson.DeveloperCloud.Services.Conversation.v1;
+using IBM.Watson.DeveloperCloud.Services.Assistant.v1;
 using IBM.Watson.DeveloperCloud.Services.TextToSpeech.v1;
 using IBM.Watson.DeveloperCloud.Services.SpeechToText.v1;
 using IBM.Watson.DeveloperCloud.Widgets;
@@ -12,272 +12,438 @@ using IBM.Watson.DeveloperCloud.Connection;
 using System.IO;
 using FullSerializer;
 
-public class SoldierConvo : MonoBehaviour {
+public class SoldierConvo : MonoBehaviour
+{
 
-	private int _recordingRoutine = 0;
-	private string _microphoneID = null;
-	private AudioClip _recording = null;
-	private int _recordingBufferSize = 2;
-	private int _recordingHZ = 22050;
+    #region PLEASE SET THESE VARIABLES IN THE INSPECTOR
+    [Header("Watson Assistant")]
+    [Tooltip("The service URL (optional). This defaults to \"https://gateway.watsonplatform.net/assistant/api\"")]
+    [SerializeField]
+    private string assistantURL;
+    [SerializeField]
+    private string assistantWorkspace;
+    [Header("CF Authentication")]
+    [SerializeField]
+    private string assistantUsername;
+    [SerializeField]
+    private string assistantPassword;
+    [Header("IAM Authentication")]
+    [Tooltip("The IAM apikey.")]
+    [SerializeField]
+    private string assistantIamApikey;
+    [Tooltip("The IAM url used to authenticate the apikey (optional). This defaults to \"https://iam.bluemix.net/identity/token\".")]
+    [SerializeField]
+    private string assistantIamUrl;
 
-	private string outputText = "";
-	private Conversation _conversation;
-	private SpeechToText _speechToText;
-	private TextToSpeech _textToSpeech;
-	private string workspace_id = ""; //enter Conversation workspace_id
+    [Header("Speech to Text")]
+    [Tooltip("The service URL (optional). This defaults to \"https://stream.watsonplatform.net/speech-to-text/api\"")]
+    [SerializeField]
+    private string SpeechToTextURL;
+    [Header("CF Authentication")]
+    [SerializeField]
+    private string SpeechToTextUsername;
+    [SerializeField]
+    private string SpeechToTextPassword;
+    [Header("IAM Authentication")]
+    [Tooltip("The IAM apikey.")]
+    [SerializeField]
+    private string SpeechToTextIamApikey;
+    [Tooltip("The IAM url used to authenticate the apikey (optional). This defaults to \"https://iam.bluemix.net/identity/token\".")]
+    [SerializeField]
+    private string SpeechToTextIamUrl;
 
-	private fsSerializer _serializer = new fsSerializer();
-	private Dictionary<string, object> _context = null;
-	private bool stopListeningFlag = false;
+    [Header("Text to Speech")]
+    [SerializeField]
+    [Tooltip("The service URL (optional). This defaults to \"https://stream.watsonplatform.net/text-to-speech/api\"")]
+    private string TextToSpeechURL;
+    [Header("CF Authentication")]
+    [SerializeField]
+    private string TextToSpeechUsername;
+    [SerializeField]
+    private string TextToSpeechPassword;
+    [Header("IAM Authentication")]
+    [Tooltip("The IAM apikey.")]
+    [SerializeField]
+    private string TextToSpeechIamApikey;
+    [Tooltip("The IAM url used to authenticate the apikey (optional). This defaults to \"https://iam.bluemix.net/identity/token\".")]
+    [SerializeField]
+    private string TextToSpeechIamUrl;
 
-	void Start()
-	{
-		InitializeServices();
+    #endregion
 
-		//enter workspace_id as string, this kicks off the conversation
-		if (!_conversation.Message (OnMessage, OnFail, workspace_id, "Hi")) {
-			Log.Debug ("ExampleConversation.Message()", "Failed to message!");
-		}
-	}
+    private int _recordingRoutine = 0;
+    private string _microphoneID = null;
+    private AudioClip _recording = null;
+    private int _recordingBufferSize = 2;
+    private int _recordingHZ = 22050;
 
-	private void OnMessage(object resp, Dictionary<string, object> customData)
-	{
-		fsData fsdata = null;
-		fsResult r = _serializer.TrySerialize(resp.GetType(), resp, out fsdata);
-		if (!r.Succeeded)
-			throw new WatsonException(r.FormattedMessages);
+    private string outputText = "Hello";
+    private Assistant _assistant;
+    private SpeechToText _speechToText;
+    private TextToSpeech _textToSpeech;
+    private bool firstMessage;
+    private bool stopListeningFlag = false;
 
-		//  Convert fsdata to MessageResponse
-		MessageResponse messageResponse = new MessageResponse();
-		object obj = messageResponse;
-		r = _serializer.TryDeserialize(fsdata, obj.GetType(), ref obj);
-		if (!r.Succeeded)
-			throw new WatsonException(r.FormattedMessages);
+    private fsSerializer _serializer = new fsSerializer();
 
-		//  Set context for next round of messaging
-		object _tempContext = null;
-		(resp as Dictionary<string, object>).TryGetValue("context", out _tempContext);
+    public Dictionary<string, object> inputObj = new Dictionary<string, object>();
 
-		if (_tempContext != null)
-			_context = _tempContext as Dictionary<string, object>;
-		else
-			Log.Debug("ExampleConversation.OnMessage()", "Failed to get context");
+    //private Dictionary<string, object> _context = null;
 
-		//if we get a response, do something with it (find the intents, output text, etc.)
-		if (resp != null && (messageResponse.intents.Length > 0 || messageResponse.entities.Length > 0))
-		{
-			string intent = messageResponse.intents[0].intent;
-			foreach (string WatsonResponse in messageResponse.output.text) {
-				outputText += WatsonResponse + " ";
-			}
-			Debug.Log("Intent/Output Text: " + intent + "/" + outputText);
-			if (intent.Contains("exit")) {
-				stopListeningFlag = true;
-			}
-			CallTTS (outputText);
-			outputText = "";
-		}
-	}
+    void Start()
+    {
+        InitializeServices();
+    }
 
-	private void OnSpeechInput(SpeechRecognitionEvent result)
-	{
-		if (result != null && result.results.Length > 0)
-		{
-			foreach (var res in result.results)
-			{
-				foreach (var alt in res.alternatives)
-				{
-					if (res.final && alt.confidence > 0)
-					{
-						string text = alt.transcript;
-						Debug.Log("Result: " + text + " Confidence: " + alt.confidence);
-						BuildSpokenRequest(text);
-					}
-				}
-			}
-		}
-	}
+    //  Send a message perserving conversation context
+    private Dictionary<string, object> _context; // context to persist
 
-	private void BuildSpokenRequest(string spokenText)
-	{
-		MessageRequest messageRequest = new MessageRequest()
-		{
-			input = new Dictionary<string, object>()
-			{
-				{ "text", spokenText }
-			},
-			context = _context
-		};
+    //  Initiate a conversation
+    private void Message0()
+    {
+        firstMessage = true;
+        inputObj.Add("text", outputText);
+        MessageRequest messageRequest = new MessageRequest()
+        {
+            Input = inputObj
+        };
 
-		if (_conversation.Message(OnMessage, OnFail, workspace_id, messageRequest))
-			Log.Debug("ExampleConversation.AskQuestion()", "Failed to message!");
-	}
+        if (!_assistant.Message(OnMessage, OnFail, assistantWorkspace, messageRequest))
+            Log.Debug("ExampleAssistant.Message()", "Failed to message!");
+    }
 
-	private void CallTTS (string outputText)
-	{
-		//Call text to speech
-		if(!_textToSpeech.ToSpeech(OnSynthesize, OnFail, outputText, false))
-			Log.Debug("ExampleTextToSpeech.ToSpeech()", "Failed to synthesize!");
-	}
+    private void OnMessage(object resp, Dictionary<string, object> customData)
+    {
+        fsData fsdata = null;
+        fsResult r = _serializer.TrySerialize(resp.GetType(), resp, out fsdata);
+        if (!r.Succeeded)
+            throw new WatsonException(r.FormattedMessages);
 
-	private void OnSynthesize(AudioClip clip, Dictionary<string, object> customData)
-	{
-		PlayClip(clip);
+        //  Convert fsdata to MessageResponse
+        MessageResponse messageResponse = new MessageResponse();
+        object obj = messageResponse;
+        r = _serializer.TryDeserialize(fsdata, obj.GetType(), ref obj);
+        if (!r.Succeeded)
+            throw new WatsonException(r.FormattedMessages);
 
-		if (!stopListeningFlag) {
-			OnListen();
-		}
-	}
+        //  Set context for next round of messaging
+        object _tempContext = null;
+        (resp as Dictionary<string, object>).TryGetValue("context", out _tempContext);
 
-	private void PlayClip(AudioClip clip)
-	{
-		if (Application.isPlaying && clip != null)
-		{
-			GameObject audioObject = new GameObject("AudioObject");
-			AudioSource source = audioObject.AddComponent<AudioSource>();
-			source.spatialBlend = 0.0f;
-			source.loop = false;
-			source.clip = clip;
-			source.Play();
-
-			Destroy(audioObject, clip.length);
-		}
-	}
-
-	private void OnListen()
-	{
-		Log.Debug("ExampleStreaming", "Start();");
-
-		Active = true;
-
-		StartRecording();
-	}
-
-	public bool Active
-	{
-		get { return _speechToText.IsListening; }
-		set {
-			if ( value && !_speechToText.IsListening )
-			{
-				_speechToText.DetectSilence = true;
-				_speechToText.EnableWordConfidence = false;
-				_speechToText.EnableTimestamps = false;
-				_speechToText.SilenceThreshold = 0.03f;
-				_speechToText.MaxAlternatives = 1;
-				//_speechToText.EnableContinousRecognition = true;
-				_speechToText.EnableInterimResults = true;
-				_speechToText.OnError = OnError;
-				_speechToText.StartListening( OnSpeechInput );
-			}
-			else if ( !value && _speechToText.IsListening )
-			{
-				_speechToText.StopListening();
-			}
-		}
-	}
-
-	private void StartRecording()
-	{
-		if (_recordingRoutine == 0)
-		{
-			UnityObjectUtil.StartDestroyQueue();
-			_recordingRoutine = Runnable.Run(RecordingHandler());
-		}
-	}
-
-	private void StopRecording()
-	{
-		if (_recordingRoutine != 0)
-		{
-			Microphone.End(_microphoneID);
-			Runnable.Stop(_recordingRoutine);
-			_recordingRoutine = 0;
-		}
-	}
-
-	private void OnError( string error )
-	{
-		Active = false;
-
-		Log.Debug("ExampleStreaming", "Error! {0}", error);
-	}
-
-	private IEnumerator RecordingHandler()
-	{
-		_recording = Microphone.Start(_microphoneID, true, _recordingBufferSize, _recordingHZ);
-		yield return null;      // let m_RecordingRoutine get set..
-
-		if (_recording == null)
-		{
-			StopRecording();
-			yield break;
-		}
-
-		bool bFirstBlock = true;
-		int midPoint = _recording.samples / 2;
-		float[] samples = null;
-
-		while (_recordingRoutine != 0 && _recording != null)
-		{
-			int writePos = Microphone.GetPosition(_microphoneID);
-			if (writePos > _recording.samples || !Microphone.IsRecording(_microphoneID))
-			{
-				Log.Error("MicrophoneWidget", "Microphone disconnected.");
-
-				StopRecording();
-				yield break;
-			}
-
-			if ((bFirstBlock && writePos >= midPoint)
-				|| (!bFirstBlock && writePos < midPoint))
-			{
-				// front block is recorded, make a RecordClip and pass it onto our callback.
-				samples = new float[midPoint];
-				_recording.GetData(samples, bFirstBlock ? 0 : midPoint);
-
-				AudioData record = new AudioData();
-				record.MaxLevel = Mathf.Max(samples);
-				record.Clip = AudioClip.Create("Recording", midPoint, _recording.channels, _recordingHZ, false);
-				record.Clip.SetData(samples, 0);
-
-				_speechToText.OnListen(record);
-
-				bFirstBlock = !bFirstBlock;
-			}
-			else
-			{
-				// calculate the number of samples remaining until we ready for a block of audio,
-				// and wait that amount of time it will take to record.
-				int remaining = bFirstBlock ? (midPoint - writePos) : (_recording.samples - writePos);
-				float timeRemaining = (float)remaining / (float)_recordingHZ;
-
-				yield return new WaitForSeconds(timeRemaining);
-			}
-
-		}
-
-		yield break;
-	}
-
-	private void InitializeServices()
-	{
-		Credentials credentials = new Credentials (<username>, <password>, "https://gateway.watsonplatform.net/conversation/api");
-		_conversation = new Conversation(credentials);
-		//be sure to give it a Version Date
-		_conversation.VersionDate = "2017-05-26";
-
-		Credentials credentials2 = new Credentials(<username>, <password>, "https://stream.watsonplatform.net/text-to-speech/api");
-		_textToSpeech = new TextToSpeech(credentials2);
-		//give Watson a voice type
-		_textToSpeech.Voice = VoiceType.en_US_Allison;
-
-		Credentials credentials3 = new Credentials(<username>, <password>, "https://stream.watsonplatform.net/speech-to-text/api");
-		_speechToText = new SpeechToText(credentials3);
-	}
+        if (_tempContext != null)
+            _context = _tempContext as Dictionary<string, object>;
+        else
+            Log.Debug("ExampleConversation.OnMessage()", "Failed to get context");
 
 
-	private void OnFail(RESTConnector.Error error, Dictionary<string, object> customData)
-	{
-		Log.Error("ExampleTextToSpeech.OnFail()", "Error received: {0}", error.ToString());
-	}
+        //  Get intent
+        object tempIntentsObj = null;
+        (resp as Dictionary<string, object>).TryGetValue("intents", out tempIntentsObj);
+        object tempIntentObj = (tempIntentsObj as List<object>)[0];
+
+        object tempIntent = null;
+        (tempIntentObj as Dictionary<string, object>).TryGetValue("intent", out tempIntent);
+        string intent = tempIntent.ToString();
+
+        //get Watson Output
+        object tempOutputObj = null;
+        (resp as Dictionary<string, object>).TryGetValue("output", out tempOutputObj);
+        object tempText = null;
+        (tempOutputObj as Dictionary<string, object>).TryGetValue("text", out tempText);
+        string outputText2 = (tempText as List<object>)[0].ToString();
+
+        Debug.Log("Intent/Output Text: " + intent + "/" + outputText2);
+        if (intent.Contains("exit"))
+        {
+            stopListeningFlag = true;
+        }
+        StopRecording();
+        CallTTS(outputText2);
+        outputText = "";
+    }
+
+    private void OnSpeechInput(SpeechRecognitionEvent result, Dictionary<string, object> customData)
+    {
+        if (result != null && result.results.Length > 0)
+        {
+            foreach (var res in result.results)
+            {
+                foreach (var alt in res.alternatives)
+                {
+                    if (res.final && alt.confidence > 0)
+                    {
+                        StopRecording();
+                        string text = alt.transcript;
+                        Debug.Log("Watson hears : " + text + " Confidence: " + alt.confidence);
+                        BuildSpokenRequest(text);
+                    }
+                }
+            }
+        }
+    }
+
+    private void BuildSpokenRequest(string spokenText)
+    {
+        MessageRequest messageRequest = new MessageRequest()
+        {
+            Input = new Dictionary<string, object>()
+            {
+                { "text", spokenText }
+            },
+            Context = _context
+        };
+
+        if (_assistant.Message(OnMessage, OnFail, assistantWorkspace, messageRequest))
+            Log.Debug("Assistant, Spoken Request", "Failed to message!");
+    }
+
+
+    private void CallTTS(string outputText)
+    {
+        //Call text to speech
+        if (!_textToSpeech.ToSpeech(OnSynthesize, OnFail, outputText, false))
+            Log.Debug("ExampleTextToSpeech.ToSpeech()", "Failed to synthesize!");
+    }
+
+    private void OnSynthesize(AudioClip clip, Dictionary<string, object> customData)
+    {
+        if (Application.isPlaying && clip != null)
+        {
+            GameObject audioObject = new GameObject("AudioObject");
+            AudioSource source = audioObject.AddComponent<AudioSource>();
+            source.spatialBlend = 0.0f;
+            source.loop = false;
+            source.volume = 1.0f;
+            source.clip = clip;
+            source.Play();
+
+            Invoke("RecordAgain", source.clip.length);
+            Destroy(audioObject, clip.length);
+        }
+    }
+
+    private void RecordAgain()
+    {
+        Debug.Log("Played Audio received from Watson Text To Speech");
+        if (!stopListeningFlag)
+        {
+            OnListen();
+        }
+    }
+
+
+    private void OnListen()
+    {
+        Log.Debug("ExampleStreaming", "Start();");
+
+        Active = true;
+
+        StartRecording();
+    }
+
+    public bool Active
+    {
+        get { return _speechToText.IsListening; }
+        set
+        {
+            if (value && !_speechToText.IsListening)
+            {
+                _speechToText.DetectSilence = true;
+                _speechToText.EnableWordConfidence = false;
+                _speechToText.EnableTimestamps = false;
+                _speechToText.SilenceThreshold = 0.03f;
+                _speechToText.MaxAlternatives = 1;
+                //_speechToText.EnableContinousRecognition = true;
+                _speechToText.EnableInterimResults = true;
+                _speechToText.OnError = OnError;
+                _speechToText.StartListening(OnSpeechInput);
+            }
+            else if (!value && _speechToText.IsListening)
+            {
+                _speechToText.StopListening();
+            }
+        }
+    }
+
+    private void StartRecording()
+    {
+        if (_recordingRoutine == 0)
+        {
+            Debug.Log("Started Recording");
+            UnityObjectUtil.StartDestroyQueue();
+            _recordingRoutine = Runnable.Run(RecordingHandler());
+        }
+    }
+
+    private void StopRecording()
+    {
+        if (_recordingRoutine != 0)
+        {
+            Debug.Log("Stopped Recording");
+            Microphone.End(_microphoneID);
+            Runnable.Stop(_recordingRoutine);
+            _recordingRoutine = 0;
+        }
+    }
+
+    private void OnError(string error)
+    {
+        Active = false;
+
+        Log.Debug("ExampleStreaming", "Error! {0}", error);
+    }
+
+    private IEnumerator RecordingHandler()
+    {
+        _recording = Microphone.Start(_microphoneID, true, _recordingBufferSize, _recordingHZ);
+        yield return null;      // let m_RecordingRoutine get set..
+
+        if (_recording == null)
+        {
+            StopRecording();
+            yield break;
+        }
+
+        bool bFirstBlock = true;
+        int midPoint = _recording.samples / 2;
+        float[] samples = null;
+
+        while (_recordingRoutine != 0 && _recording != null)
+        {
+            int writePos = Microphone.GetPosition(_microphoneID);
+            if (writePos > _recording.samples || !Microphone.IsRecording(_microphoneID))
+            {
+                Log.Error("MicrophoneWidget", "Microphone disconnected.");
+
+                StopRecording();
+                yield break;
+            }
+
+            if ((bFirstBlock && writePos >= midPoint)
+                || (!bFirstBlock && writePos < midPoint))
+            {
+                // front block is recorded, make a RecordClip and pass it onto our callback.
+                samples = new float[midPoint];
+                _recording.GetData(samples, bFirstBlock ? 0 : midPoint);
+
+                AudioData record = new AudioData();
+                record.MaxLevel = Mathf.Max(samples);
+                record.Clip = AudioClip.Create("Recording", midPoint, _recording.channels, _recordingHZ, false);
+                record.Clip.SetData(samples, 0);
+
+                _speechToText.OnListen(record);
+
+                bFirstBlock = !bFirstBlock;
+            }
+            else
+            {
+                // calculate the number of samples remaining until we ready for a block of audio, 
+                // and wait that amount of time it will take to record.
+                int remaining = bFirstBlock ? (midPoint - writePos) : (_recording.samples - writePos);
+                float timeRemaining = (float)remaining / (float)_recordingHZ;
+
+                yield return new WaitForSeconds(timeRemaining);
+            }
+
+        }
+
+        yield break;
+    }
+
+    private void InitializeServices()
+    {
+        Credentials asst_credentials = null;
+        if (!string.IsNullOrEmpty(assistantUsername) && !string.IsNullOrEmpty(assistantPassword))
+        {
+
+            //Authenticate using username and password
+            asst_credentials = new Credentials(assistantUsername, assistantPassword, assistantURL);
+            _assistant = new Assistant(asst_credentials);
+            //be sure to give it a Version Date
+            _assistant.VersionDate = "2018-09-20";
+        }
+        else if (!string.IsNullOrEmpty(assistantIamApikey))
+        {
+
+            //Authenticate using iamApikey
+            TokenOptions tokenOptions = new TokenOptions()
+            {
+                IamApiKey = assistantIamApikey,
+                IamUrl = assistantIamUrl
+            };
+
+            asst_credentials = new Credentials(tokenOptions, assistantURL);
+        }
+        else
+        {
+            throw new WatsonException("Please provide either username or password or IAM apikey to authenticate the service.");
+        }
+
+        Credentials tts_credentials = null;
+        if (!string.IsNullOrEmpty(TextToSpeechUsername) && !string.IsNullOrEmpty(TextToSpeechPassword))
+        {
+
+            //Authenticate using username and password
+            tts_credentials = new Credentials(TextToSpeechUsername, TextToSpeechPassword, TextToSpeechURL);
+            _textToSpeech = new TextToSpeech(tts_credentials);
+            //give Watson a voice type
+            _textToSpeech.Voice = VoiceType.en_US_Allison;
+        }
+        else if (!string.IsNullOrEmpty(assistantIamApikey))
+        {
+
+            //Authenticate using iamApikey
+            TokenOptions tokenOptions = new TokenOptions()
+            {
+                IamApiKey = TextToSpeechIamApikey,
+                IamUrl = TextToSpeechIamUrl
+            };
+
+            tts_credentials = new Credentials(tokenOptions, TextToSpeechURL);
+        }
+        else
+        {
+            throw new WatsonException("Please provide either username or password or IAM apikey to authenticate the service.");
+        }
+
+
+        Credentials stt_credentials = null;
+        if (!string.IsNullOrEmpty(SpeechToTextUsername) && !string.IsNullOrEmpty(SpeechToTextPassword))
+        {
+
+            //Authenticate using username and password
+            stt_credentials = new Credentials(SpeechToTextUsername, SpeechToTextPassword, SpeechToTextURL);
+            _speechToText = new SpeechToText(stt_credentials);
+        }
+        else if (!string.IsNullOrEmpty(SpeechToTextIamApikey))
+        {
+
+            //Authenticate using iamApikey
+            TokenOptions tokenOptions = new TokenOptions()
+            {
+                IamApiKey = SpeechToTextIamApikey,
+                IamUrl = SpeechToTextIamUrl
+            };
+
+            stt_credentials = new Credentials(tokenOptions, SpeechToTextURL);
+        }
+        else
+        {
+            throw new WatsonException("Please provide either username or password or IAM apikey to authenticate the service.");
+        }
+
+        // Send first message, create inputObj w/ no context
+        Message0();
+
+        Active = true;
+
+        StartRecording();   // Setup recording
+
+    }
+
+
+    private void OnFail(RESTConnector.Error error, Dictionary<string, object> customData)
+    {
+        Log.Error("ExampleTextToSpeech.OnFail()", "Error received: {0}", error.ToString());
+    }
 }
