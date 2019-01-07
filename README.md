@@ -1,10 +1,14 @@
 # Unity-AI-AR
-WIP including Medium Post
+A little AI AR project to get you up and running with IBM Watson and Unity.
+
+Start over here: https://medium.com/@MissAmaraKay/build-your-first-ai-ar-app-on-unity-8c12895687fa
+
+Want something more complete? https://github.com/akeller/Starter-AR-Project
 
 ![alt text][shespizza]
 
 ## Configuring Watson Services
-This section is broken up into two different processes, one for Speech-To-Text and Text-To-Speech, the other for Conversation (as it requires a little more work).
+This section is broken up into two different processes, one for Speech-To-Text and Text-To-Speech, the other for Assistant fka Conversation (as it requires a little more work).
 
 ### Speech-to-Text and Text-to-Speech
 Create an IBM Cloud account if you haven't already.
@@ -35,14 +39,14 @@ Expand "View credentials" to reveal your username and password. Enter these as s
 
 Repeat the same process for Text-to-Speech.
 
-### Conversation
+### Assistant (previously Conversation)
 Create an IBM Cloud account if you haven't already.
 
 Click "Catalog" in the upper menu. This will take you to the list of available services, platforms, and other offerings on the IBM Cloud. To make it simple, use the column menu and click "Watson" at the very bottom. This will filter the catalog to just show Watson Services.
 
 ![alt text][WatsonCatalogOfferings]
 
-Click on Conversation to start the provisioning of the service.
+Click on Assistant to start the provisioning of the service.
 
 Name the service, and select a region/location to deploy in. If applicable, choose an organization and space or leave it to the default if you only have one of each.
 
@@ -54,7 +58,7 @@ For pricing plans, keep the Lite plan, but notice your limits.
 
 Click "Create" and wait for the service to provision. This may take some time.
 
-Once the service is provisioned successfully, click on the Launch Tool button. This opens the Watson Conversation tool and may require you to login again.
+Once the service is provisioned successfully, click on the Launch Tool button. This opens the Watson Assistant tool and may require you to login again.
 
 ![alt text][conversation-manage]
 
