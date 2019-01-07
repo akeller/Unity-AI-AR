@@ -88,11 +88,11 @@ Alternatively, from the IBM Cloud Conversation page (page where the Launch tool 
 
 
 ## Resources
-https://unity3d.com/learn/tutorials/topics/mobile-touch/building-your-unity-game-ios-device-testing
-http://www.vergium.com/image-and-ar-camera-step-your-first-ar-app-in-20-minutes/
-https://library.vuforia.com/articles/Solution/Smart-Terrain-Workflow-in-Unity
-https://library.vuforia.com/content/vuforia-library/en/articles/Solution/Working-with-Vuforia-and-Unity.html
-https://github.com/watson-developer-cloud/unity-sdk
+* https://unity3d.com/learn/tutorials/topics/mobile-touch/building-your-unity-game-ios-device-testing
+* http://www.vergium.com/image-and-ar-camera-step-your-first-ar-app-in-20-minutes/
+* https://library.vuforia.com/articles/Solution/Smart-Terrain-Workflow-in-Unity
+* https://library.vuforia.com/content/vuforia-library/en/articles/Solution/Working-with-Vuforia-and-Unity.html
+* https://github.com/watson-developer-cloud/unity-sdk
 
 [WatsonCatalogOfferings]: ./images/WatsonCatalogOfferings.png "alt text"
 [stt-top]: ./images/stt-top-provision.png "alt text"
