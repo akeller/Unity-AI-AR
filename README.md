@@ -1,3 +1,5 @@
+**Not tested for Watson SDK for Unity version 3+, please use 2.x until this content is updated.**
+
 # Unity-AI-AR
 A little AI AR project to get you up and running with IBM Watson and Unity.
 
